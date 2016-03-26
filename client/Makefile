@@ -10,7 +10,7 @@ DEP := $(shell find -name "*.d")
 TARGET := client
 
 $(TARGET): $(OBJ)
-	$(CC) $^ -o $@
+	$(CC) $^ -lpthread -o $@
 
 -include $(DEP)
 
