@@ -26,4 +26,10 @@ main.o: main.c head.h /usr/include/stdio.h /usr/include/features.h \
  /usr/include/netinet/in.h \
  /usr/lib64/gcc/x86_64-slackware-linux/4.7.1/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/wchar.h /usr/include/bits/in.h \
- /usr/include/arpa/inet.h
+ /usr/include/arpa/inet.h /usr/include/pthread.h /usr/include/sched.h \
+ /usr/include/bits/sched.h /usr/include/bits/setjmp.h \
+ /usr/include/termios.h /usr/include/bits/termios.h \
+ /usr/include/sys/ttydefaults.h /usr/include/unistd.h \
+ /usr/include/bits/posix_opt.h /usr/include/bits/environments.h \
+ /usr/include/bits/confname.h /usr/include/getopt.h /usr/include/fcntl.h \
+ /usr/include/bits/fcntl.h /usr/include/bits/stat.h

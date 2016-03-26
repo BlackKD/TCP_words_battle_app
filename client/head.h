@@ -8,6 +8,14 @@
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
+#include <pthread.h>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+pthread_mutex_t gl_mutex;
+pthread_mutex_t gametime_mutex;
+pthread_t threadID_to_get_player;
+pthread_t threadID_to_listengame;
 #define MAXLINE 4096
 #define SERV_PORT 4321//目标服务器端口
 #define true 1
@@ -15,11 +23,11 @@
 int link_to_server(char *userid);
 void main_function();
 int sockfd;
-int send_city_to_server(char *buffer,int len);
-void Haved_find();
-void need_today_weather(char *buffer,int len);
-void need_threeday_weather(char *buffer,int len);
-void need_customday_weather(char *buffer,int len);
+
+int kbhit();
+void *print_thread(void *para);
+void Try_to_get_challenge(char *buff);
+void *play_time_thread(void *para);
 #pragma pack(1)//数据结构
 struct client_data{
 	char type[2];//服务类型
