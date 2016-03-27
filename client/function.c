@@ -5,7 +5,10 @@
 int link_to_server(char *userid)//判断连接成功函数
 {
 	//发送用户名给服务器
-	
+	if(set_client_data(0,userid))
+	{
+		return true;//解析来包
+	}
 	//发送并解析服务器工作
 	return true;
 
@@ -26,7 +29,7 @@ void main_function()//主界面交互函数
             pthread_mutex_lock(&gl_mutex);
             memset(&(buff),0,sizeof(buff));
             scanf("%s",buff);
-            printf("input:%s\n",buff);
+            printf("No use input:%s\n",buff);
 			if(buff[0]=='P'&&buff[1]=='K')
 			{
 				pthread_cancel(threadID_to_get_player);
@@ -50,8 +53,8 @@ void Try_to_get_challenge(char *buff)
 	system("clear");
 	printf("Try_to_get_challenge......\n");
 	//发送挑战请求
-	
-	//如果请求失败
+	set_client_data(1,buff);
+	//接收分析请求包如果请求失败
 /*	printf("faile to connect\n");
 	sleep(3);
 	pthread_mutex_unlock(&gl_mutex);
@@ -72,6 +75,35 @@ void Try_to_get_challenge(char *buff)
             scanf("%s",buff2);
             printf("input:%s\n",buff2);
 			
+			if(buff2[0]=='p'&&(buff2[1] == '1'|| buff2[1] == '2' || buff2[1] == '3'))
+			{
+				if(set_client_data(2,buff2))
+				{
+					printf("send succeed!\n");
+				}
+			}else if(buff2[0] == 's')
+			{
+				if(set_client_data(3,buff2))
+				{
+					printf("send saying succeed!\n");
+				}
+			}else if(buff2[0] == '#')
+			{
+				if(set_client_data(5,buff2))
+				{
+					pthread_cancel(threadID_to_listengame);
+					
+					printf("send ending succeed!\n");
+					pthread_mutex_unlock(&gametime_mutex);
+					//return;
+					main_function();
+
+				}
+			}
+			else
+			{
+				printf("input no using!\n");
+			}
 			//printf("%s\n",buff);//可以分类去发送信号
 			
             setbuf(stdin, NULL);        //clear stdin
@@ -133,6 +165,44 @@ void *play_time_thread(void *para)
     return NULL;
 }
 
+int set_client_data(int station,char *buff)
+{
+	client_data client;
+	memset(&client,0,sizeof(client_data));
+	switch(station)
+	{
+		case 0:	client.station = 0;
+				strncpy(client.id,buff,10);
+				break;
+		case 1:	client.station = 1;
+				strncpy(client.pkid,buff,10);
+				break;
+		case 2:	client.station = 2;
+				strncpy(client.pk_stuff,buff,10);
+				break;
+		case 3: client.station = 3;
+				strncpy(client.saying,buff,500);
+				break;
+		case 4: client.station = 4;
+				break;
+		case 5: client.station = 5;
+				break;
+		default:
+		{
+			printf("input error!\n");
+			return 0;
+		}
+		
+	}
+	#ifdef debug
+	printf("your packet\n");
+	printf("%d:\n %s\n%s\n%s\n%s\n",client.station,client.id,client.pkid,client.pk_stuff,client.saying);
+	sleep(3);
+	#endif
+	
+	
+	return 1;
+}
 
 int kbhit()
 {
