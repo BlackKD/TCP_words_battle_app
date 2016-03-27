@@ -5,10 +5,23 @@
 int link_to_server(char *userid)//判断连接成功函数
 {
 	//发送用户名给服务器
-	if(set_client_data(0,userid))
+	if(set_client_data(CLOGIN,userid))
 	{
 		return true;//解析来包
 	}
+	
+	#ifndef debug
+	server_data server;
+	memset(&server,0,sizeof(struct server_data));
+	//收报
+	if(server.station == 1)
+	{
+		return true;
+	}
+	else{
+		return false;
+	}
+	#endif
 	//发送并解析服务器工作
 	return true;
 
@@ -36,8 +49,10 @@ void main_function()//主界面交互函数
             printf("No use input:%s\n",buff);
 			if(buff[0]=='P'&&buff[1]=='K')
 			{
+				char buff2[10];
+				strncpy(buff2,buff+2,10);
 				pthread_cancel(threadID_to_get_player);
-				return Try_to_get_challenge(buff);
+				return Try_to_get_challenge(buff2);
 				printf("FUCK\n");
 				
 				
@@ -58,7 +73,7 @@ void Try_to_get_challenge(char *buff)
 	system("clear");
 	printf("Try_to_get_challenge......\n");
 	//发送挑战请求
-	set_client_data(1,buff);
+	set_client_data(CCHOOSE_PLAYER,buff);
 	//接收分析请求包如果请求失败
 /*	printf("faile to connect\n");
 	sleep(3);
@@ -69,10 +84,17 @@ void Try_to_get_challenge(char *buff)
 	system("clear");
 	printf("game start!\n");
 	pthread_mutex_init(&gametime_mutex,NULL);
-	pthread_create(&threadID_to_listengame,NULL,&play_time_thread,NULL);
+	int if_wait = 0;
+	pthread_create(&threadID_to_listengame,NULL,&play_time_thread,(void *)&if_wait);
 	char buff2[1000];
 	while(1)
     {
+		if(if_wait == 3)
+		{
+			pthread_mutex_unlock(&gametime_mutex);
+			pthread_cancel(threadID_to_listengame);
+			return main_function();
+		}
         if(kbhit())
         {
             pthread_mutex_lock(&gametime_mutex);
@@ -82,19 +104,29 @@ void Try_to_get_challenge(char *buff)
 			
 			if(buff2[0]=='p'&&(buff2[1] == '1'|| buff2[1] == '2' || buff2[1] == '3'))
 			{
-				if(set_client_data(2,buff2))
+				if(if_wait == 0)
+				{
+				if(set_client_data(CSHOW_STUFF,buff2))
 				{
 					printf("send succeed!\n");
+					if_wait = 1;
+				}
+				}else
+				{
+					printf("you have given your bomb!please wait!\n");
 				}
 			}else if(buff2[0] == 's')
 			{
-				if(set_client_data(3,buff2))
+				char buff3[500];
+				memset(&(buff3),0,sizeof(buff3));
+				strncpy(buff3,buff2+1,499);
+				if(set_client_data(CCHAT,buff3))
 				{
 					printf("send saying succeed!\n");
 				}
 			}else if(buff2[0] == '#')
 			{
-				if(set_client_data(5,buff2))
+				if(set_client_data(CEXIT,buff2))
 				{
 					
 					
@@ -124,11 +156,18 @@ void Try_to_get_challenge(char *buff)
 void *print_thread(void *para)
 {
     int timestamp=0;
-
+	set_client_data(CNEED_TABLE,NULL);
+	
+	#ifndef debug
+	server_data server;
+	memset(&server,0,sizeof(struct server_data));
+	#endif
+	
+	
     while(1)
     {
         usleep(100);
-
+		
         pthread_mutex_lock(&gl_mutex);
         if(timestamp>=5*10000)//可以换成抓包
         {	
@@ -151,7 +190,7 @@ void *print_thread(void *para)
 void *play_time_thread(void *para)
 {
     int timestamp=0;
-
+	int timelimit = 10;
     while(1)
     {
         usleep(100);
@@ -159,7 +198,29 @@ void *play_time_thread(void *para)
         pthread_mutex_lock(&gametime_mutex);
         if(timestamp>=5*100000)//可以换成抓包
         {	
+			#ifndef debug
+			server_data server;
+			memset(&server,0,sizeof(struct server_data));
+			#endif
+			
+			if(*(int *)para == 1)
+			{
+				timelimit --;
+				if(timelimit == 0)
+				{
+					printf("Lost server!\n");
+					sleep(1);
+					//pthread_mutex_unlock(&gametime_mutex);
+					*(int *)para = 3;
+				}
+			}
+			
+			
             printf("there are message from sever; thread ID:%d\n",(int)pthread_self());
+			if(0)
+			{
+				*(int *)para = 0;
+			}
             timestamp=0;
         }
         else
@@ -172,27 +233,49 @@ void *play_time_thread(void *para)
     return NULL;
 }
 
+
+
+
 int set_client_data(int station,char *buff)
 {
 	client_data client;
 	memset(&client,0,sizeof(client_data));
 	switch(station)
 	{
-		case 0:	client.station = 0;
+		case CLOGIN:	
+				client.station = CLOGIN;
 				strncpy(client.id,buff,10);
 				break;
-		case 1:	client.station = 1;
+		case CNEED_TABLE:	
+				client.station = CNEED_TABLE;
+				strncpy(client.id,userid,10);
+				break;
+		case CCHOOSE_PLAYER:	
+				client.station = CCHOOSE_PLAYER;
+				strncpy(client.id,userid,10);
 				strncpy(client.pkid,buff,10);
 				break;
-		case 2:	client.station = 2;
+		case CREPLY_TO_C: 
+				client.station = CREPLY_TO_C;
+				if(buff[0] == '1')
+					client.pkreply = 1;
+				else
+					client.pkreply = 0;
+				strncpy(client.id,userid,10);
+				break;
+		case CSHOW_STUFF: 
+				client.station = CSHOW_STUFF;
+				strncpy(client.id,userid,10);
 				strncpy(client.pk_stuff,buff,10);
 				break;
-		case 3: client.station = 3;
+		case CCHAT: 
+				client.station = CCHAT;
+				printf("here:%d\n",client.station);
 				strncpy(client.saying,buff,500);
+				strncpy(client.id,userid,10);
 				break;
-		case 4: client.station = 4;
-				break;
-		case 5: client.station = 5;
+		case CEXIT: 
+				client.station = CEXIT;
 				break;
 		default:
 		{
@@ -203,8 +286,8 @@ int set_client_data(int station,char *buff)
 	}
 	#ifdef debug
 	printf("your packet\n");
-	printf("%d:\n %s\n%s\n%s\n%s\n",client.station,client.id,client.pkid,client.pk_stuff,client.saying);
-	sleep(3);
+	printf("%d:\n%s\n%s\n%d\n%s\n%s\n",client.station,client.id,client.pkid,client.pkreply,client.pk_stuff,client.saying);
+	sleep(2);
 	#endif
 	
 	

@@ -43,11 +43,11 @@ pthread_t threadID_to_listengame;
 #define fail 0
 #define equal 2
 
-#define char uint8_t
+//#define char uint8_t
 int link_to_server(char *userid);
 void main_function();
 int sockfd;
-
+char userid[20];
 int kbhit();
 void *print_thread(void *para);
 void Try_to_get_challenge(char *buff);
@@ -87,7 +87,7 @@ typedef struct player_data player_data;
 typedef struct client_data client_data;
 #pragma pack(1)
 struct server_data{
-	int station;//0,禁止访问，1，验证通过，2，刷新用户列表，3，pk连接建立，4，pk反馈，5，问询，6，通知胜负，7，聊天转发
+	char station;//0,禁止访问，1，验证通过，2，刷新用户列表，3，pk连接建立，4，pk反馈，5，问询，6，通知胜负，7，聊天转发
 	char another_id[10];
 	return_data returndata;
 	
@@ -99,6 +99,6 @@ struct server_data{
 	char saying[500];
 };
 #pragma pack()
-
+typedef struct server_data server_data;
 
 #endif
