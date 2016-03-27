@@ -18,7 +18,11 @@ void main_function()//主界面交互函数
 {
 	
     char buff[1000];
-
+	
+	#ifdef debug
+	printf("what a fuck!\n");
+	#endif
+	
     memset(&(buff),0,sizeof(buff));
     pthread_mutex_init(&gl_mutex,NULL);
 	pthread_create(&threadID_to_get_player,NULL,&print_thread,NULL);
@@ -33,8 +37,9 @@ void main_function()//主界面交互函数
 			if(buff[0]=='P'&&buff[1]=='K')
 			{
 				pthread_cancel(threadID_to_get_player);
-				Try_to_get_challenge(buff);
+				return Try_to_get_challenge(buff);
 				printf("FUCK\n");
+				
 				
 			}
             setbuf(stdin, NULL);        //clear stdin
@@ -91,12 +96,14 @@ void Try_to_get_challenge(char *buff)
 			{
 				if(set_client_data(5,buff2))
 				{
-					pthread_cancel(threadID_to_listengame);
+					
 					
 					printf("send ending succeed!\n");
 					pthread_mutex_unlock(&gametime_mutex);
+					pthread_cancel(threadID_to_listengame);
+					printf("ready to go back\n");
 					//return;
-					main_function();
+					return main_function();
 
 				}
 			}
@@ -123,7 +130,7 @@ void *print_thread(void *para)
         usleep(100);
 
         pthread_mutex_lock(&gl_mutex);
-        if(timestamp>=5*100000)//可以换成抓包
+        if(timestamp>=5*10000)//可以换成抓包
         {	
 			system("clear");
 			printf("Login in Succeed\n");

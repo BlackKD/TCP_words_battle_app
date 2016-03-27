@@ -21,6 +21,29 @@ pthread_t threadID_to_listengame;
 #define SERV_PORT 4321//目标服务器端口
 #define true 1
 #define false 0
+
+#define CLOGIN 0
+#define CNEED_TABLE 2
+#define CCHOOSE_PLAYER 3
+#define CREPLY_TO_C 4
+#define CSHOW_STUFF 5
+#define CCHAT 7
+#define CEXIT 8
+
+#define SREFUSE 0
+#define SRLINK	1
+#define SGIVE_TABLE	2
+#define SCREAT_GAME 3
+#define SASK_PLAYER 4
+#define SRETURN_BATTLE 5
+#define SRETURN_WINNER 6
+#define SCHAT	7
+
+#define win 1
+#define fail 0
+#define equal 2
+
+#define char uint8_t
 int link_to_server(char *userid);
 void main_function();
 int sockfd;
@@ -34,9 +57,10 @@ int set_client_data(int station,char *buff);
 
 #pragma pack(1)//数据结构
 struct client_data{
-	int station;//0.验证ID，1，请求对战，2，发送对战，3，发送聊天，4，问询应答，5，请求结束
+	char station;
 	char id[10];
 	char pkid[10];
+	char pkreply;
 	char pk_stuff[10];
 	char saying[500];
 };
@@ -44,16 +68,16 @@ struct client_data{
 
 #pragma pack(1)
 struct return_data{
-	int lifetime;//剩余生命数
+	char lifetime;//剩余生命数
 	char pk_stuff[10];
-	int win_station;
+	char win_station;
 };
 
 #pragma pack()
 
 #pragma pack(1)
 struct player_data{
-	int station;//0,死亡，1，存在可以请求，2，正忙
+	char station;//0,死亡，1，存在可以请求，2，正忙
 	char id[10];
 };
 #pragma pack()
@@ -64,10 +88,15 @@ typedef struct client_data client_data;
 #pragma pack(1)
 struct server_data{
 	int station;//0,禁止访问，1，验证通过，2，刷新用户列表，3，pk连接建立，4，pk反馈，5，问询，6，通知胜负，7，聊天转发
+	char another_id[10];
 	return_data returndata;
-	int waittime;
-	char saying;
+	
+	//下面这俩用来结束游戏
+	char game_over[50];
+	char game_station;
+	
 	player_data player[10];//当前登录
+	char saying[500];
 };
 #pragma pack()
 
