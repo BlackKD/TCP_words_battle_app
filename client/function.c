@@ -285,12 +285,16 @@ int set_client_data(int station,char *buff)
 		
 	}
 	#ifdef debug
-	printf("your packet\n");
-	printf("%d:\n%s\n%s\n%d\n%s\n%s\n",client.station,client.id,client.pkid,client.pkreply,client.pk_stuff,client.saying);
-	sleep(2);
+	//printf("your packet\n");
+	//printf("%d:\n%s\n%s\n%d\n%s\n%s\n",client.station,client.id,client.pkid,client.pkreply,client.pk_stuff,client.saying);
+	//sleep(2);
 	#endif
 	
-	
+	if(send(sockfd,(char*)&client,sizeof(client_data),0)==0)
+	{
+		printf("send error\n");
+		exit(0);
+	}
 	return 1;
 }
 
