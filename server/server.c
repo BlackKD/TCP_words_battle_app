@@ -2,6 +2,63 @@
 #include "head.h"
 #include "Pthread.h"
 
+/* A Client's state */
+struct ClientState_ { 
+	player_data player;
+
+	// following are valid when info.station == FIGHTING
+	char rival_id[ID_LEN];  
+	char stuff[STUFF_LEN];
+	uint8_t lifetime;
+	uint8_t turn_num;  
+};
+typedef struct ClientState_ ClientState;
+ClientState cstate_table[MAX_PLAERS_NUM]; 
+
+void init_table() {
+	int i = 0;
+	while(i ++ < MAX_PLAERS_NUM) {
+		cstate_table[i].player.station = NOT_ONLINE;
+	}
+}
+
+/*
+ * NULL is returned if doesn't find the client.
+ * The pointer point to the client's state is returned if the client is online or playing with someone.
+ */
+ClientState *get_client_state(char *id) {
+	int i = 0;
+	for(i = 0; i < MAX_PLAERS_NUM; i ++) {
+		ClientState *p = &(cstate_table[i]);
+
+		if( p->player.station != NOT_ONLINE ) 
+			if( strcmp(p->player.id, id) == 0 ) 
+				return p;
+	}
+	return NULL;
+}
+
+uint8_t get_player_station(char *id) {
+	ClientState *c = get_client_state(id);
+	if( c == NULL )
+		return NOT_ONLINE;
+	else 
+		return c->player.station;
+}
+
+void construct_players_arr(player_data arr[]) {
+	int i = 0;
+	int j = 0;
+	for(i = 0; i < MAX_PLAERS_NUM; i ++) {
+		ClientState *p = &(cstate_table[i]);
+
+		if( p->player.station != NOT_ONLINE ) {
+			arr[j].station = p->player.station;
+			strncpy(arr[j].id, p->player.id, ID_LEN);
+		}
+	}
+}
+
 void *service(void *cfd) {
 	int connfd = (int)cfd;
 
