@@ -7,23 +7,25 @@ int link_to_server(char *userid)//判断连接成功函数
 	//发送用户名给服务器
 	if(set_client_data(CLOGIN,userid))
 	{
-		return true;//解析来包
+		printf("send success 0\n");
+		
 	}
 	
-	#ifndef debug
 	server_data server;
 	memset(&server,0,sizeof(struct server_data));
-	//收报
-	if(server.station == 1)
+	if(recv(sockfd,&server,sizeof(struct server_data),0)==0){
+		printf("error\n");
+	}else
 	{
+		if(server.station == 1)
+		{
 		return true;
-	}
-	else{
+		}
+		else{
 		return false;
+		}
 	}
-	#endif
-	//发送并解析服务器工作
-	return true;
+	return false;
 
 }
 
@@ -38,7 +40,8 @@ void main_function()//主界面交互函数
 	
     memset(&(buff),0,sizeof(buff));
     pthread_mutex_init(&gl_mutex,NULL);
-	pthread_create(&threadID_to_get_player,NULL,&print_thread,NULL);
+	char ifask = 0;
+	pthread_create(&threadID_to_get_player,NULL,&print_thread,(void *)&ifask);
 	while(1)
     {
         if(kbhit())
@@ -57,6 +60,32 @@ void main_function()//主界面交互函数
 				
 				
 			}
+			if(ifask==1)
+			{
+			
+			if(buff[0] == '0')
+			{
+					//char buff[1];
+					//buff[0] = '0';
+					set_client_data(CREPLY_TO_C,"0");
+					system("clear");
+					set_client_data(CNEED_TABLE,NULL);
+					ifask = 0;
+			}
+			else if(buff[0] == '1')
+			{
+					set_client_data(CREPLY_TO_C,"1");
+					pthread_cancel(threadID_to_get_player);
+					ifask = 0;
+					return agree_to_play();
+
+			}else
+			{
+					printf("Input no useless\n");
+			}
+			
+			}
+			
             setbuf(stdin, NULL);        //clear stdin
             pthread_mutex_unlock(&gl_mutex);
         }
@@ -75,14 +104,41 @@ void Try_to_get_challenge(char *buff)
 	//发送挑战请求
 	set_client_data(CCHOOSE_PLAYER,buff);
 	//接收分析请求包如果请求失败
-/*	printf("faile to connect\n");
-	sleep(3);
-	pthread_mutex_unlock(&gl_mutex);
-	pthread_create(&threadID_to_get_player,NULL,&print_thread,NULL);
-*/	
-	//如果请求成功并建立连接
+		server_data server;
+	memset(&server,0,sizeof(struct server_data));
+	if(recv(sockfd,&server,sizeof(struct server_data),0)==0)
+	{
+				printf("error\n");
+				exit(0);
+		
+	}else
+	{
+		if(server.station != 3)
+		{
+			printf("sorry the other can't play with you!\n");
+			
+			sleep(1);
+			system("clear;");
+			printf("input any word to go back!\n");
+			return main_function();
+		}
+		else{
+			
+			//如果请求成功并建立连接
+			agree_to_play();
+			
+			
+		}
+	}	
+	
+
+}
+
+
+void agree_to_play()
+{
 	system("clear");
-	printf("game start!\n");
+	printf("game start!,give your first choose(p1 for stone,p2 for Scissors,p3 for cloth;inpu s+words to chat\n");
 	pthread_mutex_init(&gametime_mutex,NULL);
 	int if_wait = 0;
 	pthread_create(&threadID_to_listengame,NULL,&play_time_thread,(void *)&if_wait);
@@ -150,62 +206,149 @@ void Try_to_get_challenge(char *buff)
         }
         usleep(100);
     }
-
+			
+			
+		
 }
+
 
 void *print_thread(void *para)
 {
-    int timestamp=0;
+   // int timestamp=0;
 	set_client_data(CNEED_TABLE,NULL);
 	
-	#ifndef debug
 	server_data server;
 	memset(&server,0,sizeof(struct server_data));
-	#endif
 	
 	
     while(1)
     {
-        usleep(100);
 		
-        pthread_mutex_lock(&gl_mutex);
-        if(timestamp>=5*10000)//可以换成抓包
-        {	
+		usleep(100);
+		int t  = 0;
+		if(!(t = recv(sockfd,&server,sizeof(struct server_data),0)))
+		{
+			printf("error  t = %d\n",t);
+		}	
+		else if(server.station == SGIVE_TABLE)
+		{
+			pthread_mutex_lock(&gl_mutex);
 			system("clear");
 			printf("Login in Succeed\n");
 			printf("(ITEMS:PK+(Player ID) to challenge)");
             printf("your friend is here!\n thread ID:%d\n",(int)pthread_self());
-            timestamp=0;
-        }
-        else
-        {
-            timestamp+=100;
-        }
-        pthread_mutex_unlock(&gl_mutex);
-    }
+			int i = 0;
+			for(i= 0;i< 10;i++)
+			{
+				printf("%d:%s,",i,server.player[i].id);
+				if(server.player[i].station == 1)
+				{
+					printf("Waiting\n");
+				}else
+				{
+					printf("busying\n");
+				}
+			}
+            pthread_mutex_unlock(&gl_mutex);
+        }else if(server.station == SASK_PLAYER)
+		{
+			pthread_mutex_lock(&gl_mutex);
+			printf("You receive a challenge From %s!(input 1 to play 0 to refuse)\n",server.another_id);
+			//setbuf(stdin, NULL);        //clear stdin
+			*(char *)para = 1;
+			pthread_mutex_unlock(&gl_mutex);
 
+		}
+		
+            
+	}
+	
     return NULL;
 }
 
 void *play_time_thread(void *para)
 {
-    int timestamp=0;
-	int timelimit = 10;
+
+	//int timelimit = 20;
+	
+	set_client_data(CNEED_TABLE,NULL);
+	server_data server;
+	memset(&server,0,sizeof(struct server_data));
+	
     while(1)
     {
         usleep(100);
 
-        pthread_mutex_lock(&gametime_mutex);
-        if(timestamp>=5*100000)//可以换成抓包
+            struct timeval timeout={15,0};//3s
+			setsockopt(sockfd,SOL_SOCKET,SO_SNDTIMEO,(const char*)&timeout,sizeof(timeout));
+			setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,(const char*)&timeout,sizeof(timeout));
+		int recvtime = recv(sockfd,&server,sizeof(struct server_data),0);
+        if(recvtime > 0 )//可以换成抓包
         {	
-			#ifndef debug
-			server_data server;
-			memset(&server,0,sizeof(struct server_data));
-			#endif
-			
-			if(*(int *)para == 1)
+			if(server.station == SRETURN_BATTLE)
 			{
+				pthread_mutex_lock(&gametime_mutex);
+				printf("---------------------THIS TASK----------------------\n");
+				//printf("you")
+				if(server.returndata.win_station == 1)
+				{
+					printf("You win! the other show %s,now you have %d lives\n",server.returndata.pk_stuff,(int)server.returndata.lifetime);
+				}else if(server.returndata.win_station == 0)
+				{
+					printf("You lose! the other show %s,now you have %d lives\n",server.returndata.pk_stuff,(int)server.returndata.lifetime);
+				}else if(server.returndata.win_station == 2)
+				{
+					printf("You Tie! the other show %s,now you have %d lives\n",server.returndata.pk_stuff,(int)server.returndata.lifetime);
+				}
+				printf("Give another choosen!\n");
+				*(int *)para = 0;
+				pthread_mutex_unlock(&gametime_mutex);
+				
+			}
+			else if(server.station == SCHAT)
+			{
+				pthread_mutex_lock(&gametime_mutex);
+				printf("there are message from sever; thread ID:%d\n",(int)pthread_self());
+				printf("The other says:%s\n",server.saying);
+				pthread_mutex_unlock(&gametime_mutex);
+			}
+			else if(server.station == SRETURN_WINNER)
+			{
+				pthread_mutex_lock(&gametime_mutex);
+				printf("*********************THE FINAL************************\n");
+				if(server.game_station == 1)
+				{
+					printf("FINAL  YOU  WIN!!!!!!!!!!!!!!!!\n");
+				}
+				else
+				{
+					printf("FINAL  YOU  LOSE!!!!!!!!!!!!!!!!\n");
+				}
+				printf("%s input any word to goback\n",server.game_over);
+				sleep(1);
+				*(int *)para = 3;
+				pthread_mutex_unlock(&gametime_mutex);
+			}
+
+		
+            
+        }
+		
+        else if(*(int *)para == 1)
+        {
+            		printf("Lost server!\n");
+					sleep(1);
+					//pthread_mutex_unlock(&gametime_mutex);
+					*(int *)para = 3;
+        }
+/*		#ifdef debug
+		printf("%d\n,%d",timelimit,*(int *)para);
+		#endif
+		if(*(int *)para == 1)
+			{
+				pthread_mutex_lock(&gametime_mutex);
 				timelimit --;
+				
 				if(timelimit == 0)
 				{
 					printf("Lost server!\n");
@@ -213,21 +356,9 @@ void *play_time_thread(void *para)
 					//pthread_mutex_unlock(&gametime_mutex);
 					*(int *)para = 3;
 				}
+				pthread_mutex_unlock(&gametime_mutex);
 			}
-			
-			
-            printf("there are message from sever; thread ID:%d\n",(int)pthread_self());
-			if(0)
-			{
-				*(int *)para = 0;
-			}
-            timestamp=0;
-        }
-        else
-        {
-            timestamp+=100;
-        }
-        pthread_mutex_unlock(&gametime_mutex);
+       */ 
     }
 
     return NULL;
