@@ -1,6 +1,6 @@
 #include "netprogram.h"
 #include "head.h"
-#include "Pthread.h"
+#include "wrap_pthread.h"
 
 /* A Client's state */
 struct ClientState_ { 
@@ -17,12 +17,12 @@ struct ClientState_ {
 };
 typedef struct ClientState_ ClientState;
 
-ClientState cstate_table[MAX_PLAERS_NUM]; 
+ClientState cstate_table[MAX_PLAYERS_NUM]; 
 pthread_rwlock_t cstable_rwlock;
 
 void init_table() {
 	int i = 0;
-	while(i ++ < MAX_PLAERS_NUM) {
+	while(i ++ < MAX_PLAYERS_NUM) {
 		cstate_table[i].player.station = NOT_ONLINE;
 	}
 }
@@ -37,7 +37,7 @@ ClientState *get_cstate_byid(char *id) {
 	int i = 0;
 	ClientState *r = NULL;
 	
-	for(i = 0; i < MAX_PLAERS_NUM; i ++) {
+	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
 		if( p->player.station != NOT_ONLINE ) 
@@ -54,7 +54,7 @@ ClientState *get_cstate_bycfd(int connfd) {
 	int i = 0;
 	ClientState *r = NULL;
 	
-	for(i = 0; i < MAX_PLAERS_NUM; i ++) {
+	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
 		if( p->player.station != NOT_ONLINE ) 
@@ -69,7 +69,7 @@ ClientState *get_cstate_bycfd(int connfd) {
 
 ClientState *get_rival_state(char *myid) {
 	ClientState *rival = NULL;
-	ClientState *me = get_cstate_bycfd(myid);
+	ClientState *me = get_cstate_byid(myid);
 	if(me != NULL)
 	   rival = get_cstate_byid(me->rival_id);
 
@@ -85,7 +85,7 @@ int get_rival_cfd(char* myid) {
 }
 
 uint8_t get_player_station(char *id) {
-	ClientState *c = get_client_state(id);
+	ClientState *c = get_cstate_byid(id);
 	if( c == NULL )
 		return NOT_ONLINE;
 	else 
@@ -96,7 +96,7 @@ ClientState *get_empty_entry() {
 	int i = 0;
 	ClientState *r = NULL;
 	
-	for(i = 0; i < MAX_PLAERS_NUM; i ++) {
+	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
 		if( p->player.station == NOT_ONLINE ) {
@@ -112,8 +112,8 @@ inline void set_player(player_data *p, uint8_t s, char *id) {
 	if(p == NULL) return;
 
 	p->station = s;
-	if(id = NULL)
-		p->id[0] = '\0';
+	if(id == NULL)
+		(p->id)[0] = '\0';
 	else
 		strncpy(p->id, id, ID_LEN);
 }
@@ -124,7 +124,7 @@ void change_cstation(char *id, uint8_t s) {
 	ClientState *c = get_cstate_byid(id);
 
 	if(c == NULL) { 
-		if( c = get_empty_entry() ) { // c must not be NULL
+		if( (c = get_empty_entry()) != NULL ) { // c must not be NULL
 			set_player(&(c->player), s, id);
 		}
 	}
@@ -137,14 +137,20 @@ void construct_players_arr(player_data arr[]) {
 	int i = 0;
 	int j = 0;
 
-	for(i = 0; i < MAX_PLAERS_NUM; i ++) {
+	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
 		if( p->player.station != NOT_ONLINE ) {
 			arr[j].station = p->player.station;
 			strncpy(arr[j].id, p->player.id, ID_LEN);
+			j ++;
 		}
 	}
+
+	if( j != MAX_PLAYERS_NUM - 1)
+		for(; j < MAX_PLAYERS_NUM; j ++ ) {
+			arr[j].station = NOT_ONLINE;
+		}
 }
 
 /*
@@ -176,7 +182,7 @@ inline void set_sd_rd(server_data *p, uint8_t lifetime, char *stuff, uint8_t win
 
 	return_data *t = &(p->returndata);
 
-	t->lifetime = life_time;
+	t->lifetime = lifetime;
 	if( stuff == NULL )
 		t->pk_stuff[0] = '\0';
 	else
@@ -190,18 +196,9 @@ inline void set_sd_over(server_data *p, char *prompt) {
 	if( p == NULL ) return;
 
 	if(prompt == NULL)
-		p->gameover[0] = '\0';
+		p->game_over[0] = '\0';
 	else
-		strncpy(t->gameover, prompt, PROMPT_LEN);
-}
-
-/*
- * Set the game_station field in a server_data
- */
-inline void set_sd_station(server_data *p, uint8_t s) {
-	if( p == NULL ) return;
-
-	p->game_station = s;
+		strncpy(p->game_over, prompt, PROMPT_LEN);
 }
 
 /*
@@ -210,7 +207,7 @@ inline void set_sd_station(server_data *p, uint8_t s) {
 inline void set_sd_player(server_data *p) {
 	if( p == NULL ) return;
 
-	construct_player_arr(p->player);
+	construct_players_arr(p->player);
 }
 
 /*
@@ -220,7 +217,7 @@ inline void set_sd_saying(server_data *p, char *say) {
 	if(p == NULL) return;
 
 	if( say == NULL )
-		p->say[0] = '\0';
+		p->saying[0] = '\0';
 	else 
 		strncpy(p->saying, say, SAYING_LEN);
 }
@@ -281,13 +278,13 @@ void Cchoose_player(int connfd, client_data *buf) {
 void Creply_to_c(client_data *buf) {
 	ClientState *rival;
 	server_data sdata;
-	server_data *p = &stata;
+	server_data *p = &sdata;
 
 	Pthread_rwlock_wrlock(&cstable_rwlock);
 
 	rival = get_rival_state(buf->id);
     if( rival != NULL ) { 
-	   set_sd_station(p, SCREATE_GAME);
+	   set_sd_station(p, SCREAT_GAME);
 	   set_sd_rid(p, rival->player.id);
 	   change_cstation(buf->id, FIGHTING);
 	   change_cstation(rival->player.id, FIGHTING);
@@ -308,12 +305,12 @@ void Cshow_stuff(int connfd, client_data *buf) {
 
 	me = get_cstate_byid(buf->id);
 	rival = get_rival_state(buf->id);
-	me->times ++;
+	me->turn_num ++;
 	strncpy(me->stuff, buf->pk_stuff, STUFF_LEN);
 
 	Pthread_rwlock_unlock(&cstable_rwlock);
 
-	if( me->times == rival->times ) {
+	if( me->turn_num == rival->turn_num ) {
 	}
 	else {
 	}
@@ -322,7 +319,7 @@ void Cshow_stuff(int connfd, client_data *buf) {
 void Cchat(client_data *buf) {
 	ClientState *rival;
 	server_data sdata;
-	server_data *p = &stata;
+	server_data *p = &sdata;
 
 	Pthread_rwlock_rdlock(&cstable_rwlock);
 
@@ -370,7 +367,7 @@ void wait_client_data(int connfd) {
 		n = readn(connfd, buf, MAXLINE);
 		
 		if( n > 0 ) {
-			handle_client_data(connfd, buf, n);
+			handle_client_data(connfd, buf);
 		}
 		else if( errno == EINTR ) {
 			continue;
@@ -399,7 +396,8 @@ void *service(void *cfd) {
 void server_start() {
 	int listenfd, connfd;
 	pthread_t tid;
-	struct sockaddr server, client;
+	struct sockaddr_in server;
+	struct sockaddr client;
 	socklen_t addrlen = sizeof(client);
 
     // Create a tcp socket
@@ -407,22 +405,27 @@ void server_start() {
 
 	// Prepare the sockaddr_in structure
 	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_addr.s_addr = htonl(INADDR_ANY);
 	server.sin_port = htons(SERV_PORT);
 
 	// Bind server's well-known port to socket
-	Bind(listenfd, (&server_addr), sizeof(server_addr));
+	Bind(listenfd, (struct sockaddr*)(&server), sizeof(server));
 
 	// Convert the socket into a listening socket
 	Listen(listenfd, LISTENQ);
 
 	// Initialize a rwlock for shared cstate_table
-	Pthread_rwlock_init(&cstate_rwlock, NULL); 
+	Pthread_rwlock_init(&cstable_rwlock, NULL); 
 
 	// One thread per client
 	while(1) {
-		connfd = Accept(listenfd, client, &addrlen);
+		connfd = Accept(listenfd, &client, &addrlen);
 		Pthread_create(&tid, NULL, &service, (void *)connfd);
 	}
 }
 	
+int main() {
+	init_table();
+	server_start();
+	return 0;
+}

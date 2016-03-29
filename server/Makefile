@@ -7,7 +7,7 @@ SRC := $(shell find -name "*.c")
 OBJ := $(SRC:%.c=%.o)
 DEP := $(shell find -name "*.d")
 
-TARGET := client
+TARGET := server
 
 $(TARGET): $(OBJ)
 	$(CC) $^ -lpthread -o $@

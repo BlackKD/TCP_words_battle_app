@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-inline void err_sys(char *str) {
+static inline void err_sys(char *str) {
 	perror(str);
 	exit(1);
 }
