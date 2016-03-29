@@ -53,7 +53,7 @@ void *print_thread(void *para);
 void Try_to_get_challenge(char *buff);
 void *play_time_thread(void *para);
 int set_client_data(int station,char *buff);
-
+void agree_to_play();
 
 #pragma pack(1)//数据结构
 struct client_data{
