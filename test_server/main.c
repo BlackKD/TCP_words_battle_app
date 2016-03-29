@@ -26,8 +26,6 @@ int kbhit()
     return 0;
 }
 
-
-
 int set_server_data(int station,int connfd)
 {
 	server_data server;
@@ -98,7 +96,6 @@ int set_server_data(int station,int connfd)
 	
 	return 1;
 }
-
 
 void *print_thread(void *connfd)
 {
