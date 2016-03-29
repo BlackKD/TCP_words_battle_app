@@ -6,6 +6,7 @@
 #define SAYING_LEN 500
 #define STUFF_LEN 10
 #define MAX_PLAYERS_NUM 10
+#define PROMPT_LEN 50  // game_over string's len
 
 #define MAXLINE 4096
 #define SERV_PORT 4321//目标服务器端口
@@ -77,7 +78,7 @@ struct server_data{
 	char another_id[ID_LEN];
 	return_data returndata;
 	
-	char game_over[50];      // when the game is over, the client should print this string
+	char game_over[PROMPT_LEN];      // when the game is over, the client should print this string
 	char game_station;       // WIN Or FAIL Or Equal
 	
 	player_data player[MAX_PLAYERS_NUM];  

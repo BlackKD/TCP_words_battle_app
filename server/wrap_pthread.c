@@ -32,3 +32,26 @@ void Pthread_mutex_unlock(pthread_mutex_t *mptr) {
 		err_sys("pthread_mutex_unlock error\n");
 }
 
+void Pthread_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *restrict attr) {
+	int n = pthread_rwlock_init(rwlock, attr);
+	if( n > 0 )
+		err_sys("pthread_rwlock_init error\n");
+}
+
+void Pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
+	int n = pthread_rwlock_rdlock(rwlock);
+	if( n > 0 )
+		err_sys("pthread_rwlock_rdlock error\n");
+}
+
+void Pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
+	int n = pthread_rwlock_wrlock(rwlock);
+	if( n > 0 )
+		err_sys("pthread_rwlock_rdlock error\n");
+}
+
+void Pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
+	int n = pthread_rwlock_unlock(rwlock);
+	if( n > 0 )
+		err_sys("pthread_rwlock_unlock error\n");
+}
