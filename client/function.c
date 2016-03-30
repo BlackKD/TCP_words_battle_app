@@ -193,7 +193,7 @@ void agree_to_play()
 					//return;
 					return main_function();
 
-				}
+			}
 			}
 			else
 			{
