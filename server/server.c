@@ -39,6 +39,7 @@ ClientState *get_cstate_byid(char *id) {
 	int i = 0;
 	ClientState *r = NULL;
 	
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
@@ -48,6 +49,7 @@ ClientState *get_cstate_byid(char *id) {
 				break;
 			}
 	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
 
 	return r;
 }
@@ -56,6 +58,7 @@ ClientState *get_cstate_bycfd(int connfd) {
 	int i = 0;
 	ClientState *r = NULL;
 	
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
@@ -65,7 +68,7 @@ ClientState *get_cstate_bycfd(int connfd) {
 				break;
 			}
 	}
-
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	return r;
 }
 
@@ -80,24 +83,51 @@ ClientState *get_rival_state(char *myid) {
 
 int get_rival_cfd(char* myid) {
 	ClientState *rival = get_rival_state(myid);
+	int r;
+
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	if(rival != NULL)
-		return rival->connfd;
+		r = rival->connfd;
 	else 
-		return -1;
+		r = -1;
+	Pthread_rwlock_unlock(&cstable_rwlock);
+
+	return r;
+}
+
+int get_mycfd(char *myid) {
+	ClientState *me = get_cstate_byid(myid);
+	int r;
+
+	Pthread_rwlock_rdlock(&cstable_rwlock);
+	if(me != NULL)
+		r = me->connfd;
+	else 
+		r = -1;
+	Pthread_rwlock_unlock(&cstable_rwlock);
+
+	return r;
 }
 
 uint8_t get_player_station(char *id) {
 	ClientState *c = get_cstate_byid(id);
+	uint8_t r;
+
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	if( c == NULL )
-		return NOT_ONLINE;
+		r = NOT_ONLINE;
 	else 
-		return c->player.station;
+		r = c->player.station;
+	Pthread_rwlock_unlock(&cstable_rwlock);
+
+	return r;
 }
 
 ClientState *get_empty_entry() {
 	int i = 0;
 	ClientState *r = NULL;
 	
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
@@ -106,32 +136,62 @@ ClientState *get_empty_entry() {
 			break;
 		}
 	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
 
 	return r;
 }
 
-void change_cstation(char *id, uint8_t s) {
+void set_rival_id(char *myid, char *rid) {
+	if( !myid ) return;
+
+	ClientState *me = get_cstate_byid(myid);
+	if(me == NULL) return;
+
+	Pthread_rwlock_wrlock(&cstable_rwlock);
+
+	if(rid == NULL)
+		me->rival_id[0] = '\0';
+	else
+		strncpy(me->rival_id, rid, ID_LEN)
+
+	Pthread_rwlock_unlock(&cstable_rwlock);
+}
+
+int change_cstation(char *id, uint8_t s) {
 	if(id == NULL) return;
 
 	ClientState *c = get_cstate_byid(id);
 
 	if(c == NULL) { 
-		if( (c = get_empty_entry()) != NULL ) { // c must not be NULL
+		if( (c = get_empty_entry()) != NULL ) {
+			Pthread_rwlock_wrlock(&cstable_rwlock);
+
 			set_player(&(c->player), s, id);
+			
+			Pthread_rwlock_unlock(&cstable_rwlock);
 		}
+		else 
+			return 0;
 	}
 	else {
+		Pthread_rwlock_wrlock(&cstable_rwlock);
+		
 		c->player.station = s;
 		if(s == FIGHTING) {
 			c->lifetime = 5;
 		}
+
+		Pthread_rwlock_unlock(&cstable_rwlock);
 	}
+
+	return 1;
 }
 
 void construct_players_arr(player_data arr[]) {
 	int i = 0;
 	int j = 0;
 
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
@@ -141,6 +201,7 @@ void construct_players_arr(player_data arr[]) {
 			j ++;
 		}
 	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
 
 	if( j != MAX_PLAYERS_NUM - 1)
 		for(; j < MAX_PLAYERS_NUM; j ++ ) {
@@ -154,6 +215,7 @@ void give_everyone_players() {
 	server_data *p = &sdata;
 	construct_players_arr(p->players);
 
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	// send every player the players table
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
@@ -161,6 +223,7 @@ void give_everyone_players() {
 			Writen(p->connfd, p, sizeof(sdata));
 		}
 	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void game_result(ClientState *winner, ClientState *loser, int equal, char *winstr, char *losestr) {
@@ -171,6 +234,8 @@ void game_result(ClientState *winner, ClientState *loser, int equal, char *winst
 		set_sd_rd(p_lose, loser->lifetime, me->stuff, EQUAL);
 	} 
 	else {
+		Pthread_rwlock_wrlock(&cstable_rwlock);
+
 		loser->lifetime --;
 		set_sd_rd(p_win,  winner->lifetime, rival->stuff, WIN);
 		set_sd_rd(p_lose, loser->lifetime, me->stuff, LOSE);
@@ -189,48 +254,76 @@ void game_result(ClientState *winner, ClientState *loser, int equal, char *winst
 			set_sd_station(p_win,  SRETURN_BATTLE);
 			set_sd_station(p_lose, SRETURN_BATTLE);
 		}
+
+		Pthread_rwlock_unlock(&cstable_rwlock);
 	}
 
 	Writen(winner->connfd, p_win, sizeof(wdata));
 	Writen(loser->connfd, p_lose, sizeof(ldata));
 }
 
-void *thread4time_limit(void *arg) {
+static inline void wait_inc(ClientState *p) {
+	Pthread_rwlock_wrlock(&cstable_rwlock);
+
+	p->wait ++;
+
+	Pthread_rwlock_unlock(&cstable_rwlock);
+}
+static inline void wait_inc(ClientState *p) {
+	Pthread_rwlock_wrlock(&cstable_rwlock);
+
+	p->wait --;
+
+	Pthread_rwlock_unlock(&cstable_rwlock);
+}
+
+void check_time_limit(int sig) {
 	int i = 0;
-	
+	struct itimerval timer;
+
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *p = &(cstate_table[i]);
 
 		if( p->player.station == FIGHTING && p->wait >= 0) {
-			p->wait ++;
+			wait_inc(p);
 			if(p->wait > TIME_LIMIT) { // time out and p win
 				ClientState *loser = get_rival_state(p->player.id);
 				game_result(p, rival, 0, "Because of time,", "Because of time");
 			}
 		}
 	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
 
-	return NULL;
+   signal(SIGALRM, check_time_limit);   
+   timer.it_interval.tv_sec = 0;
+   timer.it_interval.tv_usec = 0;
+   timer.it_value.tv_sec = INTERVAL; /* 10 seconds timer */
+   timer.it_value.tv_usec = 0;
+   setitimer(ITIMER_REAL, &timer, 0);
 }
 
 void init_timer() {
+	struct itimerval timer;
+	timer.it_interval.tv_sec = 0;
+  	timer.it_interval.tv_usec = 0;
+  	timer.it_value.tv_sec = TIME_LIMIT; /* 10 seconds timer */
+  	timer.it_value.tv_usec = 0;
+  	setitimer(ITIMER_REAL, &timer, 0);
 
+  	signal(SIGALRM, check_time_limit); /* set the Alarm signal capture */
 }
 
 void Clogin(int connfd, client_data *buf) {
 	server_data sdata;
 	server_data *p = &sdata;
 
-	Pthread_rwlock_wrlock(&cstable_rwlock);
 
-	if( get_cstate_byid(buf->id) == NULL ) { // NOT_ONLINE
+	if( get_cstate_byid(buf->id) == NULL && change_cstation(buf->id, ONLINE) ) { // NOT_ONLINE and the table is not full
 		set_sd_station(p, SRLINK);
-		change_cstation(buf->id, ONLINE);
 	}
 	else 
 		set_sd_station(p, SREFUSE);
-
-	Pthread_rwlock_unlock(&cstable_rwlock);
 
 	Writen(connfd, p, sizeof(sdata));
 
@@ -241,12 +334,8 @@ void Cneed_table(int connfd) {
 	server_data sdata;
 	server_data *p = &sdata;
 
-	Pthread_rwlock_rdlock(&cstable_rwlock);
-
 	set_sd_station(p, SGIVE_TABLE);
 	costruct_players_arr(p->players);
-
-	Pthread_rwlock_unlock(&cstable_rwlock);
 
 	Writen(connfd, p, sizeof(sdata));
 }
@@ -255,21 +344,21 @@ void Cchoose_player(int connfd, client_data *buf) {
 	server_data sdata;
 	server_data *p = &sdata;
 
-	Pthread_rwlock_rdlock(&cstable_rwlock);
-
 	char *rival_id = buf->pkid;
-	ClientState *rival = get_cstate_byid(rival_id);
-	if( rival != NULL) {
+	int rival_cfd = get_mycfd(rival_id);
+	if( rival_cfd >= 0) {
 		set_sd_station(p, SASK_PLAYER);
-		set_sd_rid(p, buf->id); 
-		Writen(rival->connfd, p, sizeof(sdata));
+		set_sd_rid(p, buf->id);
+
+		set_rival_id(buf->id, buf->pkid);
+		set_rival_id(rival_id, buf->id);
+
+		Writen(rival_cfd, p, sizeof(sdata));
 	}
 	else {
 		set_sd_station(p, SREFUSE);
 		Writen(connfd, p, sizeof(sdata));
 	}
-
-	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void Creply_to_c(client_data *buf) {
@@ -277,44 +366,44 @@ void Creply_to_c(client_data *buf) {
 	server_data sdata;
 	server_data *p = &sdata;
 
-	Pthread_rwlock_wrlock(&cstable_rwlock);
-
-	rival = get_rival_state(buf->id);
+	rival = get_cstate_byid(buf->id);
 	if( rival == NULL ) return; // may not appear
 
-	set_sd_rid(p, rival_player.id);
+	Pthread_rwlock_rdlock(&cstable_rwlock);
+
+	set_sd_rid(p, rival->player.id);
     if( buf->pkreplay == 1 ) { 
-	   set_sd_station(p, SCREAT_GAME);
-	   change_cstation(buf->id, FIGHTING);
-	   change_cstation(rival->player.id, FIGHTING);
+	    set_sd_station(p, SCREAT_GAME);
+	    change_cstation(buf->id, FIGHTING);
+	    change_cstation(rival->player.id, FIGHTING);
 	}
 	else { 
-		set_sd_station(p, SREFUSE);
+	    set_sd_station(p, SREFUSE);
 	}
 
-	Pthread_rwlock_unlock(&cstable_rwlock);
-
 	Writen(rival->connfd, p, sizeof(sdata));
+
+	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void Cshow_stuff(int connfd, client_data *buf) {
 	ClientState *me, *rival;
 
-	Pthread_rwlock_wrlock(&cstable_rwlock);
-
 	me    = get_cstate_byid(buf->id);
 	rival = get_rival_state(buf->id);
+
+    Pthread_rwlock_wrlock(&cstable_rwlock);
 	me->turn_num ++;
 	strncpy(me->stuff, buf->pk_stuff, STUFF_LEN);
-
 	Pthread_rwlock_unlock(&cstable_rwlock);
 
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	if( rival->wait < TIME_LIMIT && me->turn_num == rival->turn_num ) {
 		int result = judge_win(me->stuff, rival->stuff);
 		int equal = (result == 0) ? 1 : 0;
 
-		rival->wait = -1;
-		me->wait = -1;
+		wait_dec(rival);
+		wait_dec(me);
 		
 		winner = (result > 0)  ? me : rival;
 	    loser  = (result <= 0) ? me : rival; 
@@ -322,8 +411,11 @@ void Cshow_stuff(int connfd, client_data *buf) {
 		game_result(winner, loser, equal, "You win this time.", "You lose this time.");
 	}
 	else { // wait
+		Pthread_rwlock_wrlock(&cstable_rwlock);
 		me->wait = 0;
+		Pthread_rwlock_unlock(&cstable_rwlock);
 	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void Cchat(client_data *buf) {
@@ -356,11 +448,13 @@ void Cquitgame(client_data *buf) {
 	set_sd_station(p_win, SRETURN_WINNER);
 	set_sd_rd(p_win, WIN, "Your rival went away.\n");
 
-	Writen(winner->connfd, p_win, sizeof(wdata));
+	Pthread_rwlock_wrlock(&cstable_rwlock);
 
+	Writen(winner->connfd, p_win, sizeof(wdata));
 	winner->player.station = ONLINE;
 	me->player.station = ONLINE;
 
+	Pthread_rwlock_unlock(&cstable_rwlock);
 	give_everyone_players();
 }
 

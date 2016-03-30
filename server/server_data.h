@@ -20,7 +20,7 @@
 #define ONLINE 1
 #define FIGHTING 2    // playing with someone
 
-#define TIME_LIMIT 5 // 5 seconds
+#define TIME_LIMIT 5 // 10 seconds
 
 #pragma pack(1)
 struct return_data{
