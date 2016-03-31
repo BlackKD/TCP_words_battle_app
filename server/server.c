@@ -514,7 +514,7 @@ void wait_client_data(int connfd) {
 
 void *service(void *cfd) {
 	printf("service thread\n");
-	int connfd = (int)cfd;
+	int connfd = *((int *)cfd);
 
 	// main thread needn't to wait for each thread it creates
 	Pthread_detach(pthread_self()); 
@@ -524,6 +524,9 @@ void *service(void *cfd) {
 
 	// closed the desctiptor shared with the main thread
 	Close(connfd);
+
+	// cfd was malloced
+	free(cfd);
 
 	return NULL;
 }
@@ -558,7 +561,9 @@ void server_start() {
 	while(1) {
 		connfd = Accept(listenfd, &client, &addrlen);
 		printf("Accept a client\n");
-		Pthread_create(&tid, NULL, &service, (void *)connfd);
+		int *p_cfd = (int *)malloc(sizeof(int));
+		*p_cfd = connfd;
+		Pthread_create(&tid, NULL, &service, (void *)p_cfd);
 	}
 }
 	
