@@ -21,7 +21,7 @@ int main()
 			servaddr.sin_addr.s_addr=inet_addr("114.212.190.188");
 			servaddr.sin_port=htons(SERV_PORT);
 			//connect to the server
-			if(!connect(sockfd, (struct sockaddr* )&servaddr, sizeof(servaddr)))//创建套接字连接服务器
+			if(connect(sockfd, (struct sockaddr* )&servaddr, sizeof(servaddr)) < 0)//创建套接字连接服务器
 				printf("link success!\n");
 			else
 				printf("Link Wrong!\n");

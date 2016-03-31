@@ -28,11 +28,13 @@ struct return_data{
 	char pk_stuff[STUFF_LEN];
 	char win_station;
 };
+typedef struct return_data return_data;
 
 struct player_data{
 	char station;     // NOT_ONLINE Or ONLINE Or FIGHTING
 	char id[ID_LEN];
 };
+typedef struct player_data player_data;
 
 struct server_data{
 	char station;            //0,½ûÖ¹·ÃÎÊ£¬1£¬ÑéÖ¤Í¨¹ý£¬2£¬Ë¢ÐÂÓÃ»§ÁÐ±í£¬3£¬pkÁ¬½Ó½¨Á¢£¬4£¬pk·´À¡£¬5£¬ÎÊÑ¯£¬6£¬Í¨ÖªÊ¤¸º£¬7£¬ÁÄÌì×ª·¢
@@ -45,11 +47,8 @@ struct server_data{
 	player_data players[MAX_PLAYERS_NUM];  
 	char saying[SAYING_LEN];
 };
-#pragma pack()
-
 typedef struct server_data server_data;
-typedef struct return_data return_data;
-typedef struct player_data player_data;
+#pragma pack()
 
 static inline void set_player(player_data *p, uint8_t s, char *id) {
 	if(p == NULL) return;

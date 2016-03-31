@@ -10,6 +10,7 @@
 
 #define MAXLINE 4096
 #define SERV_PORT 4321//目标服务器端口
+#define SERV_ADDR "114.212.190.188"
 
 #define true 1
 #define false 0
@@ -66,6 +67,6 @@ static inline int judge_win(char *stuff1, char *stuff2) {
 	}
 }
 
-#include "server_dat.h"
+#include "server_data.h"
 
 #endif

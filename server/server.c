@@ -1,6 +1,8 @@
 #include "netprogram.h"
 #include "head.h"
 #include "wrap_pthread.h"
+#include <sys/time.h>
+#include <sys/signal.h>
 
 /* A Client's state */
 struct ClientState_ { 
@@ -152,13 +154,13 @@ void set_rival_id(char *myid, char *rid) {
 	if(rid == NULL)
 		me->rival_id[0] = '\0';
 	else
-		strncpy(me->rival_id, rid, ID_LEN)
+		strncpy(me->rival_id, rid, ID_LEN);
 
 	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 int change_cstation(char *id, uint8_t s) {
-	if(id == NULL) return;
+	if(id == NULL) return 0;
 
 	ClientState *c = get_cstate_byid(id);
 
@@ -230,21 +232,23 @@ void game_result(ClientState *winner, ClientState *loser, int equal, char *winst
 	server_data wdata, ldata;
 	server_data *p_win = &wdata, *p_lose = &ldata;
 	if( equal ) {
-		set_sd_rd(p_win, winner->lifetime, rival->stuff, EQUAL);
-		set_sd_rd(p_lose, loser->lifetime, me->stuff, EQUAL);
+		Pthread_rwlock_rdlock(&cstable_rwlock);
+		set_sd_rd(p_win, winner->lifetime, loser->stuff, EQUAL);
+		set_sd_rd(p_lose, loser->lifetime, winner->stuff, EQUAL);
+		Pthread_rwlock_unlock(&cstable_rwlock);
 	} 
 	else {
 		Pthread_rwlock_wrlock(&cstable_rwlock);
 
 		loser->lifetime --;
-		set_sd_rd(p_win,  winner->lifetime, rival->stuff, WIN);
-		set_sd_rd(p_lose, loser->lifetime, me->stuff, LOSE);
+		set_sd_rd(p_win,  winner->lifetime, loser->stuff, WIN);
+		set_sd_rd(p_lose, loser->lifetime, winner->stuff, FAIL);
 
 		if(loser->lifetime <= 0) { // gameover
 			set_sd_station(p_win, SRETURN_WINNER);
 			set_sd_station(p_lose, SRETURN_WINNER);
 			set_sd_over(p_win, WIN, winstr);
-			set_sd_over(p_lose, LOSE, losestr);
+			set_sd_over(p_lose, FAIL, losestr);
 
 			// change station
 			winner->player.station = ONLINE;
@@ -269,7 +273,8 @@ static inline void wait_inc(ClientState *p) {
 
 	Pthread_rwlock_unlock(&cstable_rwlock);
 }
-static inline void wait_inc(ClientState *p) {
+
+static inline void wait_dec(ClientState *p) {
 	Pthread_rwlock_wrlock(&cstable_rwlock);
 
 	p->wait --;
@@ -289,7 +294,7 @@ void check_time_limit(int sig) {
 			wait_inc(p);
 			if(p->wait > TIME_LIMIT) { // time out and p win
 				ClientState *loser = get_rival_state(p->player.id);
-				game_result(p, rival, 0, "Because of time,", "Because of time");
+				game_result(p, loser, 0, "Because of time,", "Because of time");
 			}
 		}
 	}
@@ -298,7 +303,7 @@ void check_time_limit(int sig) {
    signal(SIGALRM, check_time_limit);   
    timer.it_interval.tv_sec = 0;
    timer.it_interval.tv_usec = 0;
-   timer.it_value.tv_sec = INTERVAL; /* 10 seconds timer */
+   timer.it_value.tv_sec = TIME_LIMIT; /* 10 seconds timer */
    timer.it_value.tv_usec = 0;
    setitimer(ITIMER_REAL, &timer, 0);
 }
@@ -335,7 +340,7 @@ void Cneed_table(int connfd) {
 	server_data *p = &sdata;
 
 	set_sd_station(p, SGIVE_TABLE);
-	costruct_players_arr(p->players);
+	construct_players_arr(p->players);
 
 	Writen(connfd, p, sizeof(sdata));
 }
@@ -372,7 +377,7 @@ void Creply_to_c(client_data *buf) {
 	Pthread_rwlock_rdlock(&cstable_rwlock);
 
 	set_sd_rid(p, rival->player.id);
-    if( buf->pkreplay == 1 ) { 
+    if( buf->pkreply == 1 ) { 
 	    set_sd_station(p, SCREAT_GAME);
 	    change_cstation(buf->id, FIGHTING);
 	    change_cstation(rival->player.id, FIGHTING);
@@ -405,8 +410,8 @@ void Cshow_stuff(int connfd, client_data *buf) {
 		wait_dec(rival);
 		wait_dec(me);
 		
-		winner = (result > 0)  ? me : rival;
-	    loser  = (result <= 0) ? me : rival; 
+		ClientState *winner = (result > 0)  ? me : rival;
+	    ClientState *loser  = (result <= 0) ? me : rival; 
 
 		game_result(winner, loser, equal, "You win this time.", "You lose this time.");
 	}
@@ -446,7 +451,7 @@ void Cquitgame(client_data *buf) {
 	server_data wdata;
 	server_data *p_win = &wdata;
 	set_sd_station(p_win, SRETURN_WINNER);
-	set_sd_rd(p_win, WIN, "Your rival went away.\n");
+	set_sd_over(p_win, WIN, "Your rival went away.");
 
 	Pthread_rwlock_wrlock(&cstable_rwlock);
 
@@ -520,6 +525,7 @@ void server_start() {
 	listenfd = Socket(AF_INET, SOCK_STREAM, 0);
 
 	// Prepare the sockaddr_in structure
+	bzero(&server, sizeof(server));
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = htonl(INADDR_ANY);
 	server.sin_port = htons(SERV_PORT);
@@ -533,9 +539,11 @@ void server_start() {
 	// Initialize a rwlock for shared cstate_table
 	Pthread_rwlock_init(&cstable_rwlock, NULL); 
 
+	printf("Server is running\n");
 	// One thread per client
 	while(1) {
 		connfd = Accept(listenfd, &client, &addrlen);
+		printf("Accept a client\n");
 		Pthread_create(&tid, NULL, &service, (void *)connfd);
 	}
 }

@@ -63,6 +63,8 @@ server.o: server.c netprogram.h /usr/include/i386-linux-gnu/sys/types.h \
  /usr/include/i386-linux-gnu/sys/resource.h \
  /usr/include/i386-linux-gnu/bits/resource.h \
  /usr/include/i386-linux-gnu/sys/un.h err.h wrapsock.h head.h \
- wrap_pthread.h /usr/include/pthread.h /usr/include/sched.h \
+ server_data.h wrap_pthread.h /usr/include/pthread.h /usr/include/sched.h \
  /usr/include/i386-linux-gnu/bits/sched.h \
- /usr/include/i386-linux-gnu/bits/setjmp.h
+ /usr/include/i386-linux-gnu/bits/setjmp.h \
+ /usr/include/i386-linux-gnu/sys/time.h \
+ /usr/include/i386-linux-gnu/sys/signal.h
