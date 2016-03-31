@@ -18,7 +18,7 @@ pthread_mutex_t gametime_mutex;
 pthread_t threadID_to_get_player;
 pthread_t threadID_to_listengame;
 #define MAXLINE 4096
-#define SERV_PORT 4321//目标服务器端口
+#define SERV_PORT 1234//目标服务器端口
 #define true 1
 #define false 0
 

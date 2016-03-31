@@ -164,18 +164,7 @@ int change_cstation(char *id, uint8_t s) {
 
 	ClientState *c = get_cstate_byid(id);
 
-	if(c == NULL) { 
-		if( (c = get_empty_entry()) != NULL ) {
-			Pthread_rwlock_wrlock(&cstable_rwlock);
-
-			set_player(&(c->player), s, id);
-			
-			Pthread_rwlock_unlock(&cstable_rwlock);
-		}
-		else 
-			return 0;
-	}
-	else {
+	if(c != NULL) {
 		Pthread_rwlock_wrlock(&cstable_rwlock);
 		
 		c->player.station = s;
@@ -185,6 +174,8 @@ int change_cstation(char *id, uint8_t s) {
 
 		Pthread_rwlock_unlock(&cstable_rwlock);
 	}
+	else
+		return 0;
 
 	return 1;
 }
@@ -202,19 +193,21 @@ void construct_players_arr(player_data arr[]) {
 			strncpy(arr[j].id, p->player.id, ID_LEN);
 			j ++;
 		}
+		else {
+			arr[j].station = NOT_ONLINE;
+			j ++;
+		}
 	}
 	Pthread_rwlock_unlock(&cstable_rwlock);
 
-	if( j != MAX_PLAYERS_NUM - 1)
-		for(; j < MAX_PLAYERS_NUM; j ++ ) {
-			arr[j].station = NOT_ONLINE;
-		}
 }
 
 void give_everyone_players() {
 	int i;
 	server_data sdata;
 	server_data *p = &sdata;
+
+	set_sd_station(p, SGIVE_TABLE);
 	construct_players_arr(p->players);
 
 	Pthread_rwlock_rdlock(&cstable_rwlock);
@@ -242,6 +235,7 @@ void game_result(ClientState *winner, ClientState *loser, int equal, char *winst
 
 		loser->lifetime --;
 		set_sd_rd(p_win,  winner->lifetime, loser->stuff, WIN);
+
 		set_sd_rd(p_lose, loser->lifetime, winner->stuff, FAIL);
 
 		if(loser->lifetime <= 0) { // gameover
@@ -320,11 +314,19 @@ void init_timer() {
 }
 
 void Clogin(int connfd, client_data *buf) {
+	printf("A client %s logging in \n", buf->id);
 	server_data sdata;
 	server_data *p = &sdata;
 
+	ClientState *me = get_cstate_byid(buf->id);
+	if( me == NULL && (me = get_empty_entry()) ) { // NOT_ONLINE and the table is not full
+		Pthread_rwlock_wrlock(&cstable_rwlock);
+		
+		set_player(&(me->player), ONLINE, buf->id);
+		me->connfd = connfd;
 
-	if( get_cstate_byid(buf->id) == NULL && change_cstation(buf->id, ONLINE) ) { // NOT_ONLINE and the table is not full
+		Pthread_rwlock_unlock(&cstable_rwlock);
+
 		set_sd_station(p, SRLINK);
 	}
 	else 
@@ -336,6 +338,7 @@ void Clogin(int connfd, client_data *buf) {
 }
 
 void Cneed_table(int connfd) {
+	printf("Cneed_table\n");
 	server_data sdata;
 	server_data *p = &sdata;
 
@@ -346,6 +349,7 @@ void Cneed_table(int connfd) {
 }
 
 void Cchoose_player(int connfd, client_data *buf) {
+	printf("Cneed_table\n");
 	server_data sdata;
 	server_data *p = &sdata;
 
@@ -367,6 +371,7 @@ void Cchoose_player(int connfd, client_data *buf) {
 }
 
 void Creply_to_c(client_data *buf) {
+	printf("Creply_to_c from %s\n", buf->id);
 	ClientState *rival;
 	server_data sdata;
 	server_data *p = &sdata;
@@ -392,6 +397,7 @@ void Creply_to_c(client_data *buf) {
 }
 
 void Cshow_stuff(int connfd, client_data *buf) {
+	printf("Cshow_stuff from %s\n", buf->id);
 	ClientState *me, *rival;
 
 	me    = get_cstate_byid(buf->id);
@@ -424,6 +430,7 @@ void Cshow_stuff(int connfd, client_data *buf) {
 }
 
 void Cchat(client_data *buf) {
+	printf("Cchat from %s\n", buf->id);
 	int rival_connfd;
 	server_data sdata;
 	server_data *p = &sdata;
@@ -445,6 +452,7 @@ void Cchat(client_data *buf) {
 }
 
 void Cquitgame(client_data *buf) {
+	printf("Cquitgame from %s\n", buf->id);
 	ClientState *winner = get_rival_state(buf->id);
 	ClientState *me  = get_cstate_byid(buf->id);
 	
@@ -482,9 +490,10 @@ void wait_client_data(int connfd) {
 	char buf[MAXLINE];
 
 	while(1) {
-		n = readn(connfd, buf, MAXLINE);
+		n = readn(connfd, buf, sizeof(client_data));
 		
 		if( n > 0 ) {
+			printf("handling a client data\n");
 			handle_client_data(connfd, buf);
 		}
 		else if( errno == EINTR ) {
@@ -492,7 +501,11 @@ void wait_client_data(int connfd) {
 		}
 		else {
 			ClientState *p = get_cstate_bycfd(connfd);
-			p->player.station = NOT_ONLINE;
+			if(p != NULL) {
+				Pthread_rwlock_wrlock(&cstable_rwlock);
+				p->player.station = NOT_ONLINE;
+				Pthread_rwlock_unlock(&cstable_rwlock);
+			}
 			give_everyone_players();
 			break;
 		}
@@ -500,6 +513,7 @@ void wait_client_data(int connfd) {
 }
 
 void *service(void *cfd) {
+	printf("service thread\n");
 	int connfd = (int)cfd;
 
 	// main thread needn't to wait for each thread it creates
