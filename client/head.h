@@ -42,6 +42,11 @@ pthread_t threadID_to_listengame;
 #define SRETURN_WINNER 6
 #define SCHAT	7
 
+// a client's state
+#define NOT_ONLINE 0
+#define ONLINE 1
+#define FIGHTING 2    // playing with someone
+
 #define win 1
 #define fail 0
 #define equal 2

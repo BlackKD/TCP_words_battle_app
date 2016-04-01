@@ -199,7 +199,6 @@ void construct_players_arr(player_data arr[]) {
 		}
 	}
 	Pthread_rwlock_unlock(&cstable_rwlock);
-
 }
 
 void give_everyone_players() {

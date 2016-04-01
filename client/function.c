@@ -35,7 +35,7 @@ void main_function()//主界面交互函数
     char buff[1000];
 	
 	#ifdef debug
-	printf("what a fuck!\n");
+	printf("entered main function\n");
 	#endif
 	
     memset(&(buff),0,sizeof(buff));
@@ -213,10 +213,7 @@ void agree_to_play()
 
 
 void *print_thread(void *para)
-{
-   // int timestamp=0;
-	set_client_data(CNEED_TABLE,NULL);
-	
+{	
 	server_data server;
 	memset(&server,0,sizeof(struct server_data));
 	
@@ -229,6 +226,7 @@ void *print_thread(void *para)
 		if(!(t = recv(sockfd,&server,sizeof(struct server_data),0)))
 		{
 			printf("error  t = %d\n",t);
+			exit(1);
 		}	
 		else if(server.station == SGIVE_TABLE)
 		{
@@ -240,13 +238,13 @@ void *print_thread(void *para)
 			int i = 0;
 			for(i= 0;i< 10;i++)
 			{
-				printf("%d:%s,",i,server.player[i].id);
-				if(server.player[i].station == 1)
+				if(server.player[i].station == ONLINE)
 				{
-					printf("Waiting\n");
-				}else
+					printf("%d:%s, Waiting\n",i,server.player[i].id);
+				}
+				else if(server.player[i].station == FIGHTING) 
 				{
-					printf("busying\n");
+					printf("%d:%s, busy",i,server.player[i].id);
 				}
 			}
             pthread_mutex_unlock(&gl_mutex);
