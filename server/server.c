@@ -170,6 +170,7 @@ int change_cstation(char *id, uint8_t s) {
 		c->player.station = s;
 		if(s == FIGHTING) {
 			c->lifetime = 5;
+			c->turn_num = 0;
 		}
 
 		Pthread_rwlock_unlock(&cstable_rwlock);
@@ -180,28 +181,11 @@ int change_cstation(char *id, uint8_t s) {
 	return 1;
 }
 
-void construct_players_arr(player_data arr[]) {
-	int i = 0;
-	int j = 0;
-
-	Pthread_rwlock_rdlock(&cstable_rwlock);
-	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
-		ClientState *p = &(cstate_table[i]);
-
-		if( p->player.station != NOT_ONLINE ) {
-			arr[j].station = p->player.station;
-			strncpy(arr[j].id, p->player.id, ID_LEN);
-			j ++;
-		}
-		else {
-			arr[j].station = NOT_ONLINE;
-			j ++;
-		}
-	}
-	Pthread_rwlock_unlock(&cstable_rwlock);
+void construct_players_arr(player_data arr[]) 
 }
 
-void give_everyone_players() {
+void give_everyone_players()          {
+	printf("give_everyone_players\n");	
 	int i;
 	server_data sdata;
 	server_data *p = &sdata;
@@ -287,6 +271,7 @@ void check_time_limit(int sig) {
 			wait_inc(p);
 			if(p->wait > TIME_LIMIT) { // time out and p win
 				ClientState *loser = get_rival_state(p->player.id);
+				loser->turn_num ++;
 				game_result(p, loser, 0, "Because of time,", "Because of time");
 			}
 		}
@@ -358,7 +343,7 @@ void Cchoose_player(int connfd, client_data *buf) {
 		set_sd_station(p, SASK_PLAYER);
 		set_sd_rid(p, buf->id);
 
-		set_rival_id(buf->id, buf->pkid);
+		set_rival_id(buf->id, rival_id);
 		set_rival_id(rival_id, buf->id);
 
 		Writen(rival_cfd, p, sizeof(sdata));
