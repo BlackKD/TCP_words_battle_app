@@ -43,7 +43,7 @@ int main()
 			}
 			first_send_name = 1;
 			memset(userid,0,20);
-			gets(userid);
+			scanf("%s", userid);
 		}while(!link_to_server(userid));
 		main_function();
 

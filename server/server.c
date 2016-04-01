@@ -70,7 +70,7 @@ ClientState *get_cstate_bycfd(int connfd) {
 				break;
 			}
 	}
-	Pthread_rwlock_rdlock(&cstable_rwlock);
+	Pthread_rwlock_unlock(&cstable_rwlock);
 	return r;
 }
 
@@ -181,7 +181,22 @@ int change_cstation(char *id, uint8_t s) {
 	return 1;
 }
 
-void construct_players_arr(player_data arr[]) 
+void construct_players_arr(player_data arr[]) {
+	int i;
+	
+	Pthread_rwlock_rdlock(&cstable_rwlock);
+	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
+		ClientState *p = &(cstate_table[i]);
+
+		if( p->player.station == NOT_ONLINE ) {
+			set_player(&(arr[i]), NOT_ONLINE, NULL);
+		}
+		else {
+			set_player(&(arr[i]), p->player.station, p->player.id);
+		}
+	}
+	Pthread_rwlock_unlock(&cstable_rwlock);
+
 }
 
 void give_everyone_players()          {
@@ -196,12 +211,15 @@ void give_everyone_players()          {
 	Pthread_rwlock_rdlock(&cstable_rwlock);
 	// send every player the players table
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
-		ClientState *p = &(cstate_table[i]);
-		if( p->player.station != NOT_ONLINE ) {
-			Writen(p->connfd, p, sizeof(sdata));
+		ClientState *r = &(cstate_table[i]);
+		printf("i %d\n", i);
+		if( r->player.station != NOT_ONLINE ) {
+			printf("Writen %d", r->connfd);
+			Writen(r->connfd, p, sizeof(sdata));
 		}
 	}
 	Pthread_rwlock_unlock(&cstable_rwlock);
+	printf("end give everyone players\n");
 }
 
 void game_result(ClientState *winner, ClientState *loser, int equal, char *winstr, char *losestr) {
@@ -486,6 +504,7 @@ void wait_client_data(int connfd) {
 		else {
 			ClientState *p = get_cstate_bycfd(connfd);
 			if(p != NULL) {
+				printf("A client went away\n");
 				Pthread_rwlock_wrlock(&cstable_rwlock);
 				p->player.station = NOT_ONLINE;
 				Pthread_rwlock_unlock(&cstable_rwlock);
@@ -500,7 +519,7 @@ void *service(void *cfd) {
 	printf("service thread\n");
 	int connfd = *((int *)cfd);
 
-	// main thread needn't to wait for each thread it creates
+	// main thread needn't\ to wait for each thread it creates
 	Pthread_detach(pthread_self()); 
 
 	// here we go
@@ -544,7 +563,7 @@ void server_start() {
 	// One thread per client
 	while(1) {
 		connfd = Accept(listenfd, &client, &addrlen);
-		printf("Accept a client\n");
+		printf("Accept a client %d\n", connfd);
 		int *p_cfd = (int *)malloc(sizeof(int));
 		*p_cfd = connfd;
 		Pthread_create(&tid, NULL, &service, (void *)p_cfd);

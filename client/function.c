@@ -236,8 +236,9 @@ void *print_thread(void *para)
 			printf("(ITEMS:PK+(Player ID) to challenge)");
             printf("your friend is here!\n thread ID:%d\n",(int)pthread_self());
 			int i = 0;
-			for(i= 0;i< 10;i++)
+			for(i = 0;i< 10;i++)
 			{
+				printf("starting to print table\n");
 				if(server.player[i].station == ONLINE)
 				{
 					printf("%d:%s, Waiting\n",i,server.player[i].id);
