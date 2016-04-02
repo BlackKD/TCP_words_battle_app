@@ -1,5 +1,6 @@
 //#include<stdio.h>
 #include"head.h"
+#include <errno.h>
 
 
 int link_to_server(char *userid)//判断连接成功函数
@@ -239,7 +240,6 @@ void *print_thread(void *para)
 			int i = 0;
 			for(i = 0;i< 10;i++)
 			{
-				printf("starting to print table\n");
 				if(server.player[i].station == ONLINE)
 				{
 					printf("%d:%s, Waiting\n",i,server.player[i].id);
@@ -336,6 +336,9 @@ void *play_time_thread(void *para)
 		
         else if(*(int *)para == 1)
         {
+			if(errno == EAGAIN || errno == EINTR) continue; // just call recv again
+
+			printf("recv's return value: %d errno: %d\n", recvtime, errno);
             		printf("Lost server!\n");
 					sleep(1);
 					//pthread_mutex_unlock(&gametime_mutex);
@@ -363,9 +366,6 @@ void *play_time_thread(void *para)
 
     return NULL;
 }
-
-
-
 
 int set_client_data(int station,char *buff)
 {
@@ -407,6 +407,7 @@ int set_client_data(int station,char *buff)
 				break;
 		case CEXIT: 
 				client.station = CEXIT;
+				strncpy(client.id, userid, 10);
 				break;
 		default:
 		{
