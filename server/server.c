@@ -378,7 +378,7 @@ void Creply_to_c(client_data *buf) {
 	server_data sdata;
 	server_data *p = &sdata;
 
-	rival = get_cstate_byid(buf->id);
+	rival = get_rival_state(buf->id);
 	if( rival == NULL ) return; // may not appear
 
 	Pthread_rwlock_rdlock(&cstable_rwlock);

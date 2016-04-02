@@ -120,6 +120,7 @@ void Try_to_get_challenge(char *buff)
 			sleep(1);
 			system("clear;");
 			printf("input any word to go back!\n");
+			set_client_data(CNEED_TABLE,NULL);
 			return main_function();
 		}
 		else{
@@ -415,8 +416,8 @@ int set_client_data(int station,char *buff)
 		
 	}
 	#ifdef debug
-	//printf("your packet\n");
-	//printf("%d:\n%s\n%s\n%d\n%s\n%s\n",client.station,client.id,client.pkid,client.pkreply,client.pk_stuff,client.saying);
+	printf("your packet\n");
+	printf("%d:\n%s\n%s\n%d\n%s\n%s\n",client.station,client.id,client.pkid,client.pkreply,client.pk_stuff,client.saying);
 	//sleep(2);
 	#endif
 	
