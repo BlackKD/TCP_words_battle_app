@@ -89,6 +89,7 @@ inline void set_sd_rd(server_data *p, uint8_t lifetime, char *stuff, uint8_t win
 	return_data *t = &(p->returndata);
 
 	t->lifetime = lifetime;
+	t->win_station = win;
 	if( stuff == NULL )
 		t->pk_stuff[0] = '\0';
 	else
