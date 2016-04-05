@@ -362,6 +362,8 @@ void Creply_to_c(client_data *buf) {
 	Pthread_rwlock_unlock(&cstable_rwlock);
 
 	Writen(rival->connfd, p, sizeof(sdata));
+
+	give_everyone_players();
 }
 
 void Cshow_stuff(int connfd, client_data *buf) {
