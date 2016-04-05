@@ -186,7 +186,6 @@ void give_everyone_players() {
     set_sd_station(p, SGIVE_TABLE);
 	construct_players_arr(p->players);
 
-	Pthread_rwlock_rdlock(&cstable_rwlock);
 	// send every player the players table
 	for(i = 0; i < MAX_PLAYERS_NUM; i ++) {
 		ClientState *r = &(cstate_table[i]);
@@ -194,7 +193,6 @@ void give_everyone_players() {
 			Writen(r->connfd, p, sizeof(sdata));
 		}
 	}
-	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void game_result(ClientState *winner, ClientState *loser, int equal, char *winstr, char *losestr) {
@@ -219,6 +217,8 @@ void game_result(ClientState *winner, ClientState *loser, int equal, char *winst
 			// change station
 			winner->player.station = ONLINE;
 			loser->player.station = ONLINE; 
+			
+	        give_everyone_players();
 		}
 		else {
 			set_sd_station(p_win,  SRETURN_BATTLE);
@@ -228,6 +228,7 @@ void game_result(ClientState *winner, ClientState *loser, int equal, char *winst
 
 	Writen(winner->connfd, p_win, sizeof(wdata));
 	Writen(loser->connfd, p_lose, sizeof(ldata));
+
 }
 
 
@@ -290,7 +291,9 @@ void Clogin(int connfd, client_data *buf) {
 
 	Writen(connfd, p, sizeof(sdata));
 
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	give_everyone_players();
+	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void Cneed_table(int connfd) {
@@ -363,7 +366,9 @@ void Creply_to_c(client_data *buf) {
 
 	Writen(rival->connfd, p, sizeof(sdata));
 
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	give_everyone_players();
+	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void Cshow_stuff(int connfd, client_data *buf) {
@@ -437,7 +442,9 @@ void Cquitgame(client_data *buf) {
 
 	Pthread_rwlock_unlock(&cstable_rwlock);
 
+	Pthread_rwlock_rdlock(&cstable_rwlock);
 	give_everyone_players();
+	Pthread_rwlock_unlock(&cstable_rwlock);
 }
 
 void handle_client_data(int connfd, char *buf) {
@@ -479,7 +486,9 @@ void wait_client_data(int connfd) {
 
 			Pthread_rwlock_unlock(&cstable_rwlock);
 
+			Pthread_rwlock_rdlock(&cstable_rwlock);
 			give_everyone_players();
+			Pthread_rwlock_unlock(&cstable_rwlock);
 			break;
 		}
 	}
