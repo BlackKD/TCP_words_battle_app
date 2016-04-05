@@ -49,16 +49,13 @@ void main_function()//主界面交互函数
         {
             pthread_mutex_lock(&gl_mutex);
             memset(&(buff),0,sizeof(buff));
-            //scanf("%s",buff);
-			gets(buff);
-			setbuf(stdin, NULL); 
+            scanf("%s",buff);
             printf("No use input:%s\n",buff);
 			if(buff[0]=='P'&&buff[1]=='K')
 			{
 				char buff2[10];
 				strncpy(buff2,buff+2,10);
 				pthread_cancel(threadID_to_get_player);
-				pthread_mutex_unlock(&gl_mutex);
 				return Try_to_get_challenge(buff2);
 				printf("FUCK\n");
 				
@@ -84,7 +81,6 @@ void main_function()//主界面交互函数
 			{
 					set_client_data(CREPLY_TO_C,"1");
 					pthread_cancel(threadID_to_get_player);
-					pthread_mutex_unlock(&gl_mutex);
 					ifask = 0;
 					return agree_to_play();
 
@@ -166,9 +162,7 @@ void agree_to_play()
         {
             pthread_mutex_lock(&gametime_mutex);
             memset(&(buff2),0,sizeof(buff2));
-           // scanf("%s",buff2);
-			gets(buff2);
-			setbuf(stdin, NULL); 
+            scanf("%s",buff2);
             printf("input:%s\n",buff2);
 			
 			if(buff2[0]=='p'&&(buff2[1] == '1'|| buff2[1] == '2' || buff2[1] == '3'))
@@ -200,10 +194,8 @@ void agree_to_play()
 					
 					
 					printf("send ending succeed!\n");
-					pthread_cancel(threadID_to_listengame);
 					pthread_mutex_unlock(&gametime_mutex);
-					
-					set_client_data(CNEED_TABLE,NULL);
+					pthread_cancel(threadID_to_listengame);
 					printf("ready to go back\n");
 					//return;
 					return main_function();

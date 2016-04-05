@@ -20,7 +20,7 @@ pthread_t threadID_to_listengame;
 #define MAXLINE 4096
 
 #define SERV_PORT 1234//目标服务器端口
-#define SERV_ADDR "114.212.190.185"
+#define SERV_ADDR "114.212.190.188"
 
 #define true 1
 #define false 0
