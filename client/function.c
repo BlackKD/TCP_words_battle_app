@@ -251,7 +251,7 @@ void *print_thread(void *para)
 				}
 				else if(server.player[i].station == FIGHTING) 
 				{
-					printf("%d:%s, busy",i,server.player[i].id);
+					printf("%d:%s, busy\n",i,server.player[i].id);
 				}
 			}
             pthread_mutex_unlock(&gl_mutex);
