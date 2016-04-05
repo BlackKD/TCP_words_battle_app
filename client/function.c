@@ -61,6 +61,10 @@ void main_function()//主界面交互函数
 				
 				
 			}
+			else if(buff[0]=='#')
+			{
+				exit(1);
+			}
 			if(ifask==1)
 			{
 			
@@ -151,6 +155,7 @@ void agree_to_play()
 		{
 			pthread_mutex_unlock(&gametime_mutex);
 			pthread_cancel(threadID_to_listengame);
+			set_client_data(CNEED_TABLE,NULL);
 			return main_function();
 		}
         if(kbhit())
@@ -325,7 +330,7 @@ void *play_time_thread(void *para)
 					printf("FINAL  YOU  LOSE!!!!!!!!!!!!!!!!\n");
 				}
 				printf("%s input any word to goback\n",server.game_over);
-				sleep(1);
+				sleep(2);
 				*(int *)para = 3;
 				pthread_mutex_unlock(&gametime_mutex);
 			}
